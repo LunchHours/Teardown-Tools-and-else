@@ -1,0 +1,68 @@
+// xs 2dtocube [Hollow]
+//
+// xs_begin
+// arg : { id = '0'  name = 'FillMode'  value = '0'  range = '0 2'  step = '1'  decimal = '0' }
+// xs_end
+
+int x, y, z;
+
+// borrowed from https://github.com/lachlanmcdonald/magicavoxel-shaders
+// couldn't get iRand to work and there is barely any documentation
+float random(vec3 co) {
+    return fract(cos(dot(co.xy, vec2(23.14069266477926, pow(sqrt(2.0), 2.0)))) * (43758.6980280632 + co.z));
+}
+float random_range(vec3 co, float min, float max){
+    return min + random(co) * max;
+}
+
+
+float map(vec3 v) {
+    float pattern_padding = i_volume_size.z - i_volume_size.x;
+	float index = voxel(v);
+    x = int(v.x), y = int(v.y), z = int(v.z);
+    // ignore image itself
+    if(z == 0){
+        return index;
+    }
+
+    // top or bottom cover
+    if((z == int(i_volume_size.z - 1) || z == pattern_padding) 
+        && x != 0 && x != int(i_volume_size.x - 1)
+        && y != 0 && y != int(i_volume_size.y - 1)){
+        return voxel(vec3(v.x, v.y, 0.));
+    }
+
+    // -y face
+    if(y == 0 && x < int(i_volume_size.x - 1)){
+        return voxel(vec3(v.x, v.z - pattern_padding, 0.));
+    }
+    
+    // +x face
+    if(x == int(i_volume_size.x - 1.) && y < int(i_volume_size.y - 1)){
+        return voxel(vec3(v.y,v.z - pattern_padding, 0.));   
+    }
+    
+    // +y face
+    if(y == int(i_volume_size.y - 1.) && x > 0){
+        return voxel(vec3(i_volume_size.x - v.x, v.z - pattern_padding, 0.));
+    }
+
+    // -x face
+    if(x == 0 && y > 0){
+        return voxel(vec3(i_volume_size.y - v.y, v.z - pattern_padding, 0.));
+    }
+    
+    if(x > 0 && y > 0 && x < int(i_volume_size.x - 1) && y < (i_volume_size.y - 1) && z > pattern_padding){
+        // hollow fill
+        if(i_args[0] == 1){
+            return 0;
+        }
+        // forced color mode activated
+        if(i_args[0] == 2){
+            return iColorIndex;
+        }
+        
+        return voxel(vec3(random_range(v, 1., i_volume_size.x - 1.), random_range(v, 1., i_volume_size.x - 1.),0.));
+    }
+    return 0;
+}
